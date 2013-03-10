@@ -13,7 +13,10 @@ import edu.wpi.first.wpijavacv.ImageConverter;
 import edu.wpi.first.wpijavacv.WPIBinaryImage;
 import edu.wpi.first.wpijavacv.WPIColor;
 import edu.wpi.first.wpijavacv.WPIColorImage;
+import edu.wpi.first.wpijavacv.WPIContour;
 import edu.wpi.first.wpijavacv.WPIImage;
+import edu.wpi.first.wpijavacv.WPIPolygon;
+import java.util.ArrayList;
 
 /**
  *
@@ -31,13 +34,16 @@ public class InternetBandwidth extends WPICameraExtension {
     private IntegerProperty rectWidth = new IntegerProperty(this, "Rect Width", 200);
     private IntegerProperty rectHeight = new IntegerProperty(this, "Rect Height", 100);
 
-    private IntegerProperty hmin = new IntegerProperty(this, "Hue Min", 0);
-    private IntegerProperty hmax = new IntegerProperty(this, "Hue Max", 255);
-    private IntegerProperty smin = new IntegerProperty(this, "Sat Min", 0);
+    private IntegerProperty hmin = new IntegerProperty(this, "Hue Min", 80);
+    private IntegerProperty hmax = new IntegerProperty(this, "Hue Max", 110);
+    private IntegerProperty smin = new IntegerProperty(this, "Sat Min", 100);
     private IntegerProperty smax = new IntegerProperty(this, "Sat Max", 255);
-    private IntegerProperty vmin = new IntegerProperty(this, "Val Min", 0);
+    private IntegerProperty vmin = new IntegerProperty(this, "Val Min", 100);
     private IntegerProperty vmax = new IntegerProperty(this, "Val Max", 255);
 
+    private ArrayList<WPIPolygon> allPoly = new ArrayList<WPIPolygon>();
+    private ArrayList<WPIPolygon> quads = new ArrayList<WPIPolygon>();
+    private WPIPolygon target;
     private WPIPoint top, right, bot, left;
     private boolean initialized = false;
     private IplImage raw;
@@ -51,6 +57,9 @@ public class InternetBandwidth extends WPICameraExtension {
     private int imageWidth;
     public final IntegerProperty depthConstant = new IntegerProperty(this, "depthConstant", 8);
     private WPIBinaryImage hsvFiltered;
+    private WPIContour[] contours;
+    private int maxArea, xCenter;
+
 
     @Override
     public WPIImage processImage(WPIColorImage rawImage) {
@@ -95,7 +104,39 @@ public class InternetBandwidth extends WPICameraExtension {
         
         //convert back to wpi
         hsvFiltered = ImageConverter.iplToWPIBinary(bin); 
+        contours = hsvFiltered.findContours();
+
+        //rawImage.drawContours(contours, lineColor, 2);
+
+        for (WPIContour c : contours) {
+            allPoly.add(c.approxPolygon(50));
+        }
+
+        for (WPIPolygon p : allPoly) {
+            rawImage.drawPolygon(p, lineColor, 4);
+        }
+
+        for (WPIPolygon p : allPoly) {
+            //TODO: edit for pyramidMode
+            if (p.isConvex() && p.getNumVertices() == 4) {
+                quads.add(p);
+            } else {
+                rawImage.drawPolygon(p, WPIColor.MAGENTA, 4);
+            }
+        }
+        for (WPIPolygon p : quads) {            
+            if (p.getArea() > maxArea) {
+                maxArea = p.getArea();
+                xCenter = p.getX() + (p.getWidth() / 2);
+                target = p;
+            }
+            rawImage.drawPolygon(target, WPIColor.YELLOW, 5);
+        }
+
+        allPoly.clear(); 
+        quads.clear();
+        maxArea = 0;
         
-        return hsvFiltered;
+        return rawImage;
     }
 }
