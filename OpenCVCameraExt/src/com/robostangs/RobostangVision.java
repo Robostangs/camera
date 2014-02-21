@@ -51,7 +51,7 @@ public class RobostangVision extends WPICameraExtension {
     private int minArea = Integer.MIN_VALUE;
     private int imageHeight = 0;
     private int imageWidth = 0;
-    private boolean pyramidMode = false;
+    private boolean foundTargets = false;
     private boolean initialized = false;
     private IplImage raw;
     private IplImage convertedToHSV;
@@ -125,29 +125,20 @@ public class RobostangVision extends WPICameraExtension {
         }
         
         for (WPIPolygon p : quads) {            
-            //look for biggest polygon
-            if (pyramidMode) {
-                //look for smallest polygon
-                if (p.getArea() < minArea) {
-                    minArea = p.getArea();
-                    xCenter = p.getX() + (p.getWidth() / 2);
-                    target = p;
-                }
-            } else {
-                if (p.getArea() > maxArea) {
-                    maxArea = p.getArea();
-                    xCenter = p.getX() + (p.getWidth() / 2);
-                    target = p;
-                }
-            }
-            rawImage.drawPolygon(target, WPIColor.YELLOW, 5);
+            rawImage.drawPolygon(p, WPIColor.YELLOW, 5);
+	    foundTargets = true;
         }
         
         synchronized (table) {
             //TODO: send data to robit
             processedImage.setValue(table.getBoolean("viewProcessedImage", processedImage.getValue()));
-            pyramidMode = table.getBoolean("pyramidMode", pyramidMode);
-            table.putNumber("xCenter", xCenter);
+	    table.putString("test", "connection working");
+	    table.putBoolean("hasTargets", foundTargets);
+	    /*
+	    	figure this out 
+	    table.putBoolean("leftHot", leftHot);
+	    table.putBoolean("rightHot", rightHot);
+	    */
         }
         
         /*
