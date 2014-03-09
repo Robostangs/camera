@@ -29,13 +29,13 @@ import java.util.ArrayList;
  */
 public class RobostangVision extends WPICameraExtension {
     private final NetworkTable table = NetworkTable.getTable("camera");
-    public final IntegerProperty saturationRangeBeg = new IntegerProperty(this, "saturationRangeBeg", 200);
+    public final IntegerProperty saturationRangeBeg = new IntegerProperty(this, "saturationRangeBeg", 125);
     public final IntegerProperty saturationRangeEnd = new IntegerProperty(this, "saturationRangeEnd", 255);
-    public final IntegerProperty greenRangeBeg = new IntegerProperty(this, "greenBegin", 100);
+    public final IntegerProperty greenRangeBeg = new IntegerProperty(this, "greenBegin", 0);
     public final IntegerProperty greenRangeEnd = new IntegerProperty(this, "greenEnd", 255);
-    public final IntegerProperty valueRangeBeg = new IntegerProperty(this, "valueRangeBeg", 55);
+    public final IntegerProperty valueRangeBeg = new IntegerProperty(this, "valueRangeBeg", 100);
     public final IntegerProperty valueRangeEnd = new IntegerProperty(this, "valueRangeEnd", 255);
-    public final IntegerProperty polyAccuracy = new IntegerProperty(this, "polyAccuracy", 90);
+    public final IntegerProperty polyAccuracy = new IntegerProperty(this, "polyAccuracy", 0);
     public final IntegerProperty depthConstant = new IntegerProperty(this, "depthConstant", 8);
     public final BooleanProperty processedImage = new BooleanProperty(this, "processedImage", false);
     public final BooleanProperty enableProcessing = new BooleanProperty(this, "enableProcessing", false);
@@ -44,13 +44,13 @@ public class RobostangVision extends WPICameraExtension {
     private WPIColor contourColor = new WPIColor (17,133,133);
     private ArrayList<WPIPolygon> allPoly = new ArrayList<WPIPolygon>();
     private ArrayList<WPIPolygon> quads = new ArrayList<WPIPolygon>();
-    private WPIPolygon target;
+    private WPIPolygon target = null;
     private int xCenter = 0;
     private int yCenter = 0;
     private int maxArea = 0;
     private int minArea = Integer.MIN_VALUE;
-    private int imageHeight = 0;
-    private int imageWidth = 0;
+    private int imageHeight = 320;
+    private int imageWidth = 240;
     private boolean foundTargets = false;
     private boolean initialized = false;
     private IplImage raw;
@@ -63,6 +63,7 @@ public class RobostangVision extends WPICameraExtension {
     
     @Override
     public WPIImage processImage(WPIColorImage rawImage) {
+	    table.putString("test value", "success");
         if (!initialized || cvSize.height() != rawImage.getHeight() 
                 || cvSize.width() != rawImage.getWidth()) {
             ImageConverter.init();
@@ -89,9 +90,9 @@ public class RobostangVision extends WPICameraExtension {
         
         //get green pixels
         opencv_imgproc.cvThreshold(hue, processed, greenRangeBeg.getValue(), 
-                255, opencv_imgproc.CV_THRESH_BINARY);
-        opencv_imgproc.cvThreshold(hue, hue, greenRangeEnd.getValue(), 
-                255, opencv_imgproc.CV_THRESH_BINARY);
+                greenRangeEnd.getValue(), opencv_imgproc.CV_THRESH_BINARY);
+        //opencv_imgproc.cvThreshold(hue, hue, greenRangeEnd.getValue(), 
+          //      255, opencv_imgproc.CV_THRESH_BINARY);
         
         //get only super saturated pixels
         opencv_imgproc.cvThreshold(saturation, saturation, saturationRangeBeg.getValue(), 
@@ -114,26 +115,28 @@ public class RobostangVision extends WPICameraExtension {
         for (WPIContour c : contours) {
             allPoly.add(c.approxPolygon(polyAccuracy.getValue()));
         }
-        
         for (WPIPolygon p : allPoly) {
-            //TODO: edit for pyramidMode
-            if (p.isConvex() && p.getNumVertices() == 4) {
-                quads.add(p);
-            } else {
-                rawImage.drawPolygon(p, WPIColor.MAGENTA, 4);
-            }
+            if (target == null) {
+		    target = p;
+	    }
+	    if (p.getArea() > target.getArea()) {
+		    target = p;
+	    }
         }
-        
+        rawImage.drawPolygon(target, WPIColor.YELLOW, 5);
+	/*
         for (WPIPolygon p : quads) {            
             rawImage.drawPolygon(p, WPIColor.YELLOW, 5);
 	    foundTargets = true;
         }
+	*/
         
         synchronized (table) {
             //TODO: send data to robit
             processedImage.setValue(table.getBoolean("viewProcessedImage", processedImage.getValue()));
 	    table.putString("test", "connection working");
 	    table.putBoolean("hasTargets", foundTargets);
+	    table.putNumber("poly accuracy", polyAccuracy.getValue());
 	    /*
 	    	figure this out 
 	    table.putBoolean("leftHot", leftHot);
@@ -146,6 +149,7 @@ public class RobostangVision extends WPICameraExtension {
          */
         allPoly.clear();
         quads.clear();
+	target = null;
         maxArea = 0;
         minArea = Integer.MIN_VALUE;
         ImageConverter.clearMem();
