@@ -39,6 +39,7 @@ public class RobostangVision extends WPICameraExtension {
     public final IntegerProperty depthConstant = new IntegerProperty(this, "depthConstant", 8);
     public final BooleanProperty processedImage = new BooleanProperty(this, "processedImage", false);
     public final BooleanProperty enableProcessing = new BooleanProperty(this, "enableProcessing", false);
+    public final BooleanProperty sendData = new BooleanProperty(this, "sendData", false);
     private WPIBinaryImage hsvFiltered;
     private WPIContour[] contours;
     private WPIColor contourColor = new WPIColor (17,133,133);
@@ -51,7 +52,7 @@ public class RobostangVision extends WPICameraExtension {
     private int minArea = Integer.MIN_VALUE;
     private int imageHeight = 320;
     private int imageWidth = 240;
-    private boolean foundTargets = false;
+    private boolean hot = false;
     private boolean initialized = false;
     private IplImage raw;
     private IplImage convertedToHSV;
@@ -124,6 +125,7 @@ public class RobostangVision extends WPICameraExtension {
 	    }
         }
         rawImage.drawPolygon(target, WPIColor.YELLOW, 5);
+        
 	/*
         for (WPIPolygon p : quads) {            
             rawImage.drawPolygon(p, WPIColor.YELLOW, 5);
@@ -132,16 +134,12 @@ public class RobostangVision extends WPICameraExtension {
 	*/
         
         synchronized (table) {
-            //TODO: send data to robit
-            processedImage.setValue(table.getBoolean("viewProcessedImage", processedImage.getValue()));
 	    table.putString("test", "connection working");
-	    table.putBoolean("hasTargets", foundTargets);
-	    table.putNumber("poly accuracy", polyAccuracy.getValue());
-	    /*
-	    	figure this out 
-	    table.putBoolean("leftHot", leftHot);
-	    table.putBoolean("rightHot", rightHot);
-	    */
+            if (sendData.getValue()) {
+                table.putBoolean("hot", hot);
+            } else {
+                table.putBoolean("hot", false);
+            }
         }
         
         /*
